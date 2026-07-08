@@ -7,6 +7,9 @@ locals {
   certified_image_url    = "https://github.com/rancher/suse-ai-deploy/releases/download/${var.certified_os_image_tag}/${local.certified_image_name}"
   certified_image_sha512 = "5d96f40c22786955d19ffdccfe2acb4817717ca476247bf91f870233f25c50da7609e8aa01e8242c3510fe80e20fbb6323a0e19bcd16ac67b66774c17bdaf992"
   ssh_username           = "opensuse"
+  common_tags = {
+    workload = "AI"
+  }
 
   ha_ingress_rules = local.is_ha ? [
     {
@@ -116,6 +119,7 @@ resource "local_file" "private_key_pem" {
 resource "azurerm_resource_group" "rg" {
   name     = "${var.prefix}-rg"
   location = var.location
+  tags     = local.common_tags
 }
 
 resource "azurerm_storage_account" "vhd" {
@@ -125,6 +129,7 @@ resource "azurerm_storage_account" "vhd" {
   account_tier                    = "Standard"
   account_replication_type        = "LRS"
   allow_nested_items_to_be_public = false
+  tags                            = local.common_tags
 }
 
 resource "azurerm_storage_container" "vhds" {
@@ -200,6 +205,7 @@ resource "azurerm_image" "suseaitf" {
   name                = "SUSEAITFCloudCertifiedImage"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  tags                = local.common_tags
   os_disk {
     os_type      = "Linux"
     os_state     = "Generalized"
@@ -213,6 +219,7 @@ resource "azurerm_virtual_network" "vnet" {
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  tags                = local.common_tags
 }
 
 resource "azurerm_subnet" "subnet" {
@@ -229,6 +236,7 @@ resource "azurerm_public_ip" "pip" {
   location            = azurerm_resource_group.rg.location
   allocation_method   = "Static"
   sku                 = "Standard"
+  tags                = local.common_tags
 }
 
 # --- Security Groups (NSG) ---
@@ -331,9 +339,7 @@ resource "azurerm_network_security_group" "default" {
     }
 
   }
-  tags = {
-    Name = "${var.prefix}-nsg"
-  }
+  tags = merge(local.common_tags, { Name = "${var.prefix}-nsg" })
 }
 
 resource "azurerm_network_interface" "nic" {
@@ -348,6 +354,7 @@ resource "azurerm_network_interface" "nic" {
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.pip[count.index].id
   }
+  tags = local.common_tags
 }
 
 resource "azurerm_network_interface_security_group_association" "nic_nsg" {
@@ -389,9 +396,7 @@ resource "azurerm_linux_virtual_machine" "opensuse_gpu" {
     hostname       = "${var.prefix}-rke2-${count.index + 1}"
   }))
 
-  tags = {
-    Name = "${var.prefix}-opensuse-rke2"
-  }
+  tags = merge(local.common_tags, { Name = "${var.prefix}-opensuse-rke2" })
 }
 
 # --- Provisioning Logic ---
