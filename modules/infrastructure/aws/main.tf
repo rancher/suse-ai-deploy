@@ -1,5 +1,3 @@
-data "aws_caller_identity" "current" {}
-
 locals {
   instance_count         = var.ha_setup ? 3 : 1
   is_ha                  = var.ha_setup && local.instance_count == 3
@@ -12,9 +10,7 @@ locals {
   certified_image_name   = "opensuse-leap-15-6-suse-ai-deploy-cloud-image.x86_64.vhd"
   certified_image_url    = "https://github.com/rancher/suse-ai-deploy/releases/download/${var.certified_os_image_tag}/${local.certified_image_name}"
   certified_image_sha512 = "5d96f40c22786955d19ffdccfe2acb4817717ca476247bf91f870233f25c50da7609e8aa01e8242c3510fe80e20fbb6323a0e19bcd16ac67b66774c17bdaf992"
-  username               = element(split("/", data.aws_caller_identity.current.arn), length(split("/", data.aws_caller_identity.current.arn)) - 1)
   common_tags = {
-    Owner    = local.username
     workload = "AI"
   }
 
