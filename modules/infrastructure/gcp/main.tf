@@ -1,9 +1,12 @@
 locals {
-  instance_count         = var.ha_setup ? 3 : 1
-  is_ha                  = var.ha_setup && local.instance_count == 3
-  private_ssh_key_path   = var.ssh_private_key_path == null ? "${path.cwd}/${var.prefix}-ssh_private_key.pem" : var.ssh_private_key_path
-  public_ssh_key_path    = var.ssh_public_key_path == null ? "${path.cwd}/${var.prefix}-ssh_public_key.pem" : var.ssh_public_key_path
-  ssh_username           = "opensuse"
+  instance_count       = var.ha_setup ? 3 : 1
+  is_ha                = var.ha_setup && local.instance_count == 3
+  private_ssh_key_path = var.ssh_private_key_path == null ? "${path.cwd}/${var.prefix}-ssh_private_key.pem" : var.ssh_private_key_path
+  public_ssh_key_path  = var.ssh_public_key_path == null ? "${path.cwd}/${var.prefix}-ssh_public_key.pem" : var.ssh_public_key_path
+  ssh_username         = "opensuse"
+  common_labels = {
+    workload = "ai"
+  }
   certified_image_name   = "opensuse-leap-15-6-suse-ai-deploy-cloud-image.x86_64.raw.tar.gz"
   certified_image_url    = "https://github.com/rancher/suse-ai-deploy/releases/download/${var.certified_os_image_tag}/${local.certified_image_name}"
   certified_image_sha512 = "806fcc47b510ac8e63b9ca1550a872958a0bfbdb4e74fadad0f6c91810aee1a954dab7d1b273a6e5b09300908ce4445f915b10618ad647a647b18718dfff84ab"
@@ -79,6 +82,7 @@ resource "google_storage_bucket" "images_bucket" {
   name          = "${var.prefix}-certified-img-bucket"
   location      = var.region
   force_destroy = true
+  labels        = local.common_labels
 }
 
 resource "google_storage_bucket_object" "certified_image" {
@@ -91,6 +95,7 @@ resource "google_storage_bucket_object" "certified_image" {
 resource "google_compute_image" "upload_certified_image" {
   depends_on = [google_storage_bucket_object.certified_image]
   name       = "${var.prefix}-opensuse-certified-img"
+  labels     = local.common_labels
   raw_disk {
     source = "https://storage.googleapis.com/${google_storage_bucket.images_bucket.name}/${google_storage_bucket_object.certified_image.name}"
   }
@@ -181,6 +186,7 @@ resource "google_compute_instance" "default" {
   machine_type = var.instance_type
   zone         = var.zone
   tags         = local.is_ha ? ["${var.prefix}", "rke2-ha"] : ["${var.prefix}"]
+  labels       = local.common_labels
   scheduling {
     preemptible         = var.spot_instance
     provisioning_model  = var.spot_instance ? "SPOT" : "STANDARD"
